@@ -2,95 +2,114 @@
 
 namespace DbStressmit;
 
+use PDO;
+use PDOException;
+
 class Stressmit
 {
     /**
-     * Menguji keamanan dan performa dari sebuah SQL Query.
+     * Otak Utama Analisis Query (Heuristic Security & Risk Scoring)
+     * Bisa berjalan secara mandiri (Agnostik/All Platform).
      *
-     * @param string $query Teks SQL query yang ingin diuji.
-     * @param array $options Opsi tambahan seperti jumlah baris data (rows) simulasi.
-     * @return array Hasil analisis stress test dan audit keamanan.
+     * @param string $query Teks SQL yang diuji
+     * @param array $params Parameter query (bindings) jika ada
+     * @param float $forcedTimeMs Waktu simulasi jika tidak terhubung ke DB asli
+     * @return array Struktur data laporan standar internasional
      */
-    public static function testQuery(string $query, array $options = []): array
+    public static function analyze(string $query, array $params = [], float $forcedTimeMs = 0.0): array
     {
-        $rowsSimulated = $options['rows'] ?? 100;
-        $startTime = microtime(true);
-
-        // --- 1. AUDIT KEAMANAN (DETEKSI SQL INJECTION) ---
-        $securityIssues = [];
+        $query = trim($query);
         $isSafe = true;
+        $securityIssues = [];
+        $dangerScore = 0;
 
-        // Cek apakah user menggabungkan variabel langsung lewat string (raw query vulnerability)
-        if (preg_match('/\'\s*status\s*\'|\'\s*OR\s*\'1\'\s*=\s*\'1/i', $query) || preg_match('/WHERE\s+\w+\s*=\s*\'?\$[a-zA-O0-9_]+/i', $query)) {
-            $securityIssues[] = 'CRITICAL: Terdeteksi potensi celah SQL Injection! Jangan menggabungkan variabel langsung ke dalam string query.';
+        // --- 1. MODERN HEURISTIC SECURITY AUDIT ---
+        
+        // Pola A: Deteksi Logika Pemutus Taut (Logical Tautology / Bypass)
+        // Contoh: ' OR '1'='1 atau " OR 1=1
+        if (preg_match('/\'\s*OR\s+\'?[0-9a-z_]+\'?\s*=\s*\'?[0-9a-z_]+\'?|\"\s*OR\s+\"?[0-9a-z_]+\"?\s*=\s*\"?[0-9a-z_]+\"?/i', $query)) {
+            $dangerScore += 45;
+            $securityIssues[] = 'HIGH RISK: Terdeteksi pola manipulasi logika bypass (Logical Tautology OR 1=1).';
+        }
+
+        // Pola B: Deteksi Penyisipan Kueri Berlapis (Stacked Queries)
+        // Hacker menyisipkan ';' untuk menghapus atau mengubah tabel di tengah jalan
+        if (preg_match('/;\s*(DROP|DELETE|ALTER|UPDATE|TRUNCATE)/i', $query)) {
+            $dangerScore += 50;
+            $securityIssues[] = 'CRITICAL: Terdeteksi upaya penyisipan kueri destruktif (Stacked Queries).';
+        }
+
+        // Pola C: Deteksi Karakter Komentar Pemutus Sintaks
+        if (preg_match('/(--|#|\/\*)/', $query)) {
+            $dangerScore += 20;
+            $securityIssues[] = 'MEDIUM RISK: Ditemukan karakter komentar SQL (--,#,/*) yang biasa dipakai memotong sintaks autentikasi.';
+        }
+
+        // Pola D: Analisis Konteks Parameter (Anti AI-Hacker Fuzzing)
+        foreach ($params as $key => $value) {
+            if (is_string($value)) {
+                if (preg_match('/(UNION\s+SELECT|SELECT\s+.*\s+FROM)/i', $value)) {
+                    $dangerScore += 45;
+                    $securityIssues[] = "HIGH RISK: Parameter [{$key}] terindikasi membawa muatan injeksi (Union-Based Injection).";
+                }
+            }
+        }
+
+        // Penentuan Ambang Batas Keamanan Standar Internasional
+        if ($dangerScore >= 40) {
             $isSafe = false;
         }
 
-        // Cek penggunaan Prepared Statements (Standar Keamanan Internasional)
-        if (strpos($query, '?') === false && strpos($query, ':') === false && preg_match('/WHERE/i', $query)) {
-            $securityIssues[] = 'WARNING: Query menggunakan input dinamis tetapi tidak mendeteksi Placeholder (? atau :name). Disarankan menggunakan Prepared Statements.';
+        // --- 2. PERFORMA & BENCHMARK SIMULASI ---
+        // Jika tidak dijalankan pada database riil, hitung beban performa secara teoritis
+        $estimatedTime = $forcedTimeMs;
+        if ($estimatedTime === 0.0) {
+            $estimatedTime = rand(5, 15) / 100; // Waktu dasar kueri optimal (~0.1ms)
+            if (stripos($query, 'join') !== false) $estimatedTime += 12.5;
+            if (stripos($query, 'like') !== false) $estimatedTime += 8.2;
         }
 
-
-        // --- 2. SIMULASI BEBAN PERFORMA (STRESS TEST) ---
-        $baseDelay = rand(10, 40) / 1000; 
-        
-        if (stripos($query, 'join') !== false) {
-            $baseDelay += 0.18; // JOIN bikin query lebih berat
-        }
-        if (stripos($query, 'like') !== false) {
-            $baseDelay += 0.12; // LIKE %string% butuh full-table scan jika tanpa index
-        }
-        if (stripos($query, 'group by') !== false || stripos($query, 'order by') !== false) {
-            $baseDelay += 0.07; // Sorting butuh resource tambahan
-        }
-
-        // Makin banyak data yang disimulasikan, makin lambat
-        $baseDelay += ($rowsSimulated * 0.0003);
-
-        // Jalankan jeda simulasi
-        usleep((int)($baseDelay * 1000000));
-
-        $endTime = microtime(true);
-        $executionTimeMs = ($endTime - $startTime) * 1000;
-
-
-        // --- 3. ANALISIS PERFORMA & REKOMENDASI ---
-        $status = 'OPTIMAL';
-        $recommendations = [];
-
-        if ($executionTimeMs > 200) {
-            $status = 'SLOW QUERY';
-            if (stripos($query, 'join') !== false) {
-                $recommendations[] = 'Optimasi JOIN: Pastikan kolom ON (Foreign Key) sudah memiliki indeks (INDEX) di database.';
-            }
-            if (stripos($query, '*') !== false) {
-                $recommendations[] = 'Optimasi Memori: Hindari "SELECT *". Ambil kolom yang dibutuhkan saja (misal: SELECT id, name) untuk menghemat RAM server.';
-            }
-        }
-
-        if (empty($recommendations)) {
-            $recommendations[] = 'Performa query aman dan efisien.';
-        }
-
-        // --- 4. OUTPUT HASIL ---
         return [
             'package' => 'warnadi/db-stressmit',
-            'version' => '1.1.0',
-            'timestamp' => date('Y-m-d H:i:s'),
-            'summary' => [
-                'status' => $status,
-                'is_security_passed' => $isSafe,
-                'execution_time_ms' => round($executionTimeMs, 2),
-                'rows_tested' => $rowsSimulated
-            ],
+            'query' => $query,
+            'execution_time_ms' => $estimatedTime,
             'security_report' => [
-                'issues_found' => count($securityIssues),
-                'details' => $securityIssues
+                'risk_score' => min($dangerScore, 100),
+                'is_safe' => $isSafe,
+                'issues' => $securityIssues
             ],
-            'performance_report' => [
-                'suggestions' => $recommendations
-            ]
+            'checked_at' => date('Y-m-d H:i:s')
         ];
+    }
+
+    /**
+     * Fitur Eksekusi Nyata menggunakan Koneksi PDO Riil (Laravel, Symfony, Native DB, dll)
+     */
+    public static function executeAndAudit(PDO $pdo, string $query, array $params = []): array
+    {
+        $startTime = microtime(true);
+        $success = true;
+        $errorMessage = null;
+
+        try {
+            $stmt = $pdo->prepare($query);
+            $stmt->execute($params);
+        } catch (PDOException $e) {
+            $success = false;
+            $errorMessage = $e->getMessage();
+        }
+
+        $endTime = microtime(true);
+        $realExecutionTimeMs = ($endTime - $startTime) * 1000;
+
+        // Gabungkan hasil eksekusi riil dengan analisis cerdas Heuristic kita
+        $analysis = self::analyze($query, $params, $realExecutionTimeMs);
+        
+        $analysis['status'] = $success ? 'SUCCESS' : 'SQL ERROR';
+        if ($errorMessage) {
+            $analysis['database_error'] = $errorMessage;
+        }
+
+        return $analysis;
     }
 }

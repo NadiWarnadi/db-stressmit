@@ -1,0 +1,82 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ * DB-STRESSMIT Global CLI Executable
+ * Standar Internasional - Kompatibel All Platform (Native, CI4, Symfony, WordPress, Laravel CLI)
+ */
+
+// 1. Deteksi Autoloader Composer secara Dinamis (Penting agar bisa jalan saat di-install orang lain)
+$autoloaderPaths = [
+    __DIR__ . '/../vendor/autoload.php',          // Jika dijalankan di dalam repo lokal sendiri
+    __DIR__ . '/../../../autoload.php',         // Jika di-install di dalam vendor proyek orang lain
+    __DIR__ . '/../vendor/autoload.php'
+];
+
+$autoloadSuccess = false;
+foreach ($autoloaderPaths as $path) {
+    if (file_exists($path)) {
+        require_once $path;
+        $autoloadSuccess = true;
+        break;
+    }
+}
+
+if (!$autoloadSuccess) {
+    echo "\033[1;31m[ ERROR ]\033[0m Composer autoloader tidak ditemukan. Jalankan 'composer install' terlebih dahulu.\n";
+    exit(1);
+}
+
+use DbStressmit\Stressmit;
+
+// 2. Baca Argumen Terminal Menggunakan getopt bawaan PHP Core
+$options = getopt("", ["query:", "time:", "help"]);
+
+// Tampilkan Menu Bantuan Standar Internasional jika input salah / meminta --help
+if (isset($options['help']) || !isset($options['query'])) {
+    echo "\033[1;35m==================================================\033[0m\n";
+    echo "\033[1;36m       DB-STRESSMIT CLI TOOL - GLOBAL STANDARD    \033[0m\n";
+    echo "\033[1;35m==================================================\033[0m\n";
+    echo "Cara Penggunaan (All Platform):\n";
+    echo "  php vendor/bin/db-stressmit --query=\"[SQL_QUERY]\" --time=[OPSIONAL_SIMULASI_MS]\n\n";
+    echo "Contoh:\n";
+    echo "  php vendor/bin/db-stressmit --query=\"SELECT * FROM users WHERE id = 1\"\n";
+    echo "\033[1;35m==================================================\033[0m\n";
+    exit(0);
+}
+
+$query = trim($options['query']);
+$givenTimeMs = isset($options['time']) ? (float)$options['time'] : 0.0;
+
+// 3. Eksekusi Otak Analisis Heuristic (Agnostik)
+// Di sini kita memanggil method static yang nanti ada di dalam src/Stressmit.php
+$hasil = Stressmit::analyze($query, [], $givenTimeMs);
+
+// 4. Tampilkan Output Visual yang Cantik dan Informatif di Terminal
+echo "\033[1;35m==================================================\033[0m\n";
+echo "\033[1;36m          DB-STRESSMIT AUDIT REPORT               \033[0m\n";
+echo "\033[1;35m==================================================\033[0m\n";
+echo "🎯 \033[1mQuery Dites:\033[0m {$hasil['query']}\n";
+echo "⏱️ \033[1mWaktu Respon:\033[0m " . round($hasil['execution_time_ms'], 4) . " ms\n";
+echo "📊 \033[1mRisk Score:\033[0m " . ($hasil['security_report']['risk_score'] > 0 ? "\033[1;31m" : "\033[1;32m") . $hasil['security_report']['risk_score'] . "/100\033[0m\n";
+echo "--------------------------------------------------\n";
+
+// Cetak Status Keamanan Berdasarkan Heuristic Scoring
+echo "\033[1;34m[ AUDIT KEAMANAN V2 ]\033[0m\n";
+if ($hasil['security_report']['is_safe']) {
+    echo "\033[32m✔ PASSED: Logika query dinilai aman dari anomali vurnerabilitas kuno.\033[0m\n";
+} else {
+    echo "\033[31m✘ CRITICAL ALERT: Pola manipulasi data terdeteksi!\033[0m\n";
+}
+
+// Tampilkan daftar indikasi masalah jika ada
+if (!empty($hasil['security_report']['issues'])) {
+    foreach ($hasil['security_report']['issues'] as $issue) {
+        echo "  ⚠️ \033[33m" . $issue . "\033[0m\n";
+    }
+}
+
+echo "\033[1;35m==================================================\033[0m\n";
+
+// Mengembalikan exit code sesuai standar POSIX/GNU (0 = sukses, 1 = bahaya/error)
+exit($hasil['security_report']['is_safe'] ? 0 : 1);

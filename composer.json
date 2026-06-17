@@ -1,6 +1,6 @@
 {
     "name": "warnadi/db-stressmit",
-    "description": "A lightweight database query simulator, stress tester, and benchmark tool for PHP",
+    "description": "Smart database query benchmark, heuristic security auditor, and stress tester for PHP and Laravel.",
     "type": "library",
     "license": "MIT",
     "authors": [
@@ -16,6 +16,16 @@
     "autoload": {
         "psr-4": {
             "DbStressmit\\": "src/"
+        }
+    },
+    "bin": [
+        "bin/db-stressmit"
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "DbStressmit\\StressmitServiceProvider"
+            ]
         }
     }
 }
