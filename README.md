@@ -38,7 +38,7 @@ Are you looking for a powerful **Laravel query log auditor**, **PHP SQL profilin
 ## ⚙️ Requirements
 
 * **PHP:** `>= 8.0` (Fully supports PHP 8.1, 8.2, 8.3+)
-* **Laravel:** `^9.0 | ^10.0 | ^11.0` (Optional, for auto-pilot feature)
+* **Laravel:** `^9.0 | ^10.0 | ^11.0 | ^12.0` (Optional, for auto-pilot feature)
 
 ---
 
