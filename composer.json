@@ -1,0 +1,21 @@
+{
+    "name": "warnadi/db-stressmit",
+    "description": "A lightweight database query simulator, stress tester, and benchmark tool for PHP",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Warnadi Nadi",
+            "email": "warnadi2006@gmail.com"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {
+        "php": ">=8.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "DbStressmit\\": "src/"
+        }
+    }
+}
