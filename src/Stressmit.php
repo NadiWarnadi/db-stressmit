@@ -5,71 +5,92 @@ namespace DbStressmit;
 class Stressmit
 {
     /**
-     * Menguji dan menyimulasikan performa dari sebuah SQL Query.
+     * Menguji keamanan dan performa dari sebuah SQL Query.
      *
      * @param string $query Teks SQL query yang ingin diuji.
      * @param array $options Opsi tambahan seperti jumlah baris data (rows) simulasi.
-     * @return array Hasil analisis stress test.
+     * @return array Hasil analisis stress test dan audit keamanan.
      */
     public static function testQuery(string $query, array $options = []): array
     {
-        $rowsSimulated = $options['rows'] ?? 100; // Default simulasi 100 baris data
-        
-        // 1. Mulai Benchmark Waktu
+        $rowsSimulated = $options['rows'] ?? 100;
         $startTime = microtime(true);
 
-        // 2. Simulasi Kompleksitas Query
-        $baseDelay = rand(10, 50) / 1000; // Jeda dasar dalam detik (10ms - 50ms)
+        // --- 1. AUDIT KEAMANAN (DETEKSI SQL INJECTION) ---
+        $securityIssues = [];
+        $isSafe = true;
+
+        // Cek apakah user menggabungkan variabel langsung lewat string (raw query vulnerability)
+        if (preg_match('/\'\s*status\s*\'|\'\s*OR\s*\'1\'\s*=\s*\'1/i', $query) || preg_match('/WHERE\s+\w+\s*=\s*\'?\$[a-zA-O0-9_]+/i', $query)) {
+            $securityIssues[] = 'CRITICAL: Terdeteksi potensi celah SQL Injection! Jangan menggabungkan variabel langsung ke dalam string query.';
+            $isSafe = false;
+        }
+
+        // Cek penggunaan Prepared Statements (Standar Keamanan Internasional)
+        if (strpos($query, '?') === false && strpos($query, ':') === false && preg_match('/WHERE/i', $query)) {
+            $securityIssues[] = 'WARNING: Query menggunakan input dinamis tetapi tidak mendeteksi Placeholder (? atau :name). Disarankan menggunakan Prepared Statements.';
+        }
+
+
+        // --- 2. SIMULASI BEBAN PERFORMA (STRESS TEST) ---
+        $baseDelay = rand(10, 40) / 1000; 
         
         if (stripos($query, 'join') !== false) {
-            $baseDelay += 0.15; // JOIN menambah beban simulasi
+            $baseDelay += 0.18; // JOIN bikin query lebih berat
         }
-        
-        if (stripos($query, '%') !== false || stripos($query, 'like') !== false) {
-            $baseDelay += 0.08; // Pencarian LIKE wildcard juga berat
+        if (stripos($query, 'like') !== false) {
+            $baseDelay += 0.12; // LIKE %string% butuh full-table scan jika tanpa index
+        }
+        if (stripos($query, 'group by') !== false || stripos($query, 'order by') !== false) {
+            $baseDelay += 0.07; // Sorting butuh resource tambahan
         }
 
-        // Tambah beban berdasarkan jumlah baris data yang disimulasikan
-        $baseDelay += ($rowsSimulated * 0.0005);
+        // Makin banyak data yang disimulasikan, makin lambat
+        $baseDelay += ($rowsSimulated * 0.0003);
 
-        // Eksekusi jeda simulasi
+        // Jalankan jeda simulasi
         usleep((int)($baseDelay * 1000000));
 
-        // 3. Selesai Sesi Pengujian
         $endTime = microtime(true);
         $executionTimeMs = ($endTime - $startTime) * 1000;
 
-        // 4. Analisis Standar & Rekomendasi
+
+        // --- 3. ANALISIS PERFORMA & REKOMENDASI ---
         $status = 'OPTIMAL';
         $recommendations = [];
 
         if ($executionTimeMs > 200) {
-            $status = 'SLOW QUERY (WARNING)';
+            $status = 'SLOW QUERY';
             if (stripos($query, 'join') !== false) {
-                $recommendations[] = 'Beban tinggi terdeteksi pada operasi JOIN. Pastikan kolom Foreign Key sudah diberi INDEX.';
+                $recommendations[] = 'Optimasi JOIN: Pastikan kolom ON (Foreign Key) sudah memiliki indeks (INDEX) di database.';
             }
             if (stripos($query, '*') !== false) {
-                $recommendations[] = 'Hindari penggunaan "SELECT *". Sebutkan nama kolom secara spesifik untuk menghemat memory.';
+                $recommendations[] = 'Optimasi Memori: Hindari "SELECT *". Ambil kolom yang dibutuhkan saja (misal: SELECT id, name) untuk menghemat RAM server.';
             }
-            if (count($recommendations) === 0) {
-                $recommendations[] = 'Query memakan waktu cukup lama. Pertimbangkan untuk membatasi hasil menggunakan LIMIT.';
-            }
-        } else {
-            $recommendations[] = 'Performa query sangat bagus dan memenuhi standar internasional (< 200ms).';
         }
 
+        if (empty($recommendations)) {
+            $recommendations[] = 'Performa query aman dan efisien.';
+        }
+
+        // --- 4. OUTPUT HASIL ---
         return [
-            'library' => 'db-stressmit',
-            'status' => $status,
-            'metrics' => [
+            'package' => 'warnadi/db-stressmit',
+            'version' => '1.1.0',
+            'timestamp' => date('Y-m-d H:i:s'),
+            'summary' => [
+                'status' => $status,
+                'is_security_passed' => $isSafe,
                 'execution_time_ms' => round($executionTimeMs, 2),
-                'rows_simulated' => $rowsSimulated,
+                'rows_tested' => $rowsSimulated
             ],
-            'analysis' => [
-                'query_tested' => trim($query),
-                'recommendations' => $recommendations
+            'security_report' => [
+                'issues_found' => count($securityIssues),
+                'details' => $securityIssues
             ],
-            'tested_at' => date('Y-m-d H:i:s')
+            'performance_report' => [
+                'suggestions' => $recommendations
+            ]
         ];
     }
 }
