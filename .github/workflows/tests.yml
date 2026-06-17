@@ -15,7 +15,7 @@ jobs:
       matrix:
         php-version: ['8.0', '8.1', '8.2', '8.3']
 
-    name: PHP ${{ matrix:php-version }} Test
+    name: PHP ${{ matrix.php-version }} Test
 
     steps:
       - name: Checkout code
@@ -24,14 +24,12 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix:php-version }}
+          php-version: ${{ matrix.php-version }}
           extensions: mbstring, json, pdo, pdo_mysql
           coverage: none
 
       - name: Install dependencies via Packagist
         run: |
-         
-          composer global config minimum-stability stable
           composer validate --strict
           composer install --prefer-dist --no-progress
 
