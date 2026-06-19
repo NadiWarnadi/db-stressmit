@@ -2,12 +2,16 @@ name: Dynamic Payload Auto-Update
 
 on:
   schedule:
-    - cron: '0 0 * * *' # Berjalan setiap hari pada jam 12 malam UTC
-  workflow_dispatch: # Memungkinkan eksekusi manual via tombol di GitHub UI
+    - cron: '0 0 * * *'
+  workflow_dispatch:
 
 jobs:
   update-payloads:
     runs-on: ubuntu-latest
+    
+    # PERBAIKAN: Berikan izin ke GitHub Token agar bisa melakukan push perubahan payload baru
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout Repository
@@ -35,12 +39,12 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
+          # Gunakan flag -f jika file tersebut terabaikan oleh .gitignore
           git add src/Patterns/compiled.php
           
-          # Cek apakah ada perubahan yang perlu dicommit
           if git diff --staged --quiet; then
             echo "Tidak ada pola payload baru yang ditemukan hari ini."
           else
             git commit -m "chore(security): auto-update dynamic exploit payloads from OSV [skip ci]"
-            git push origin main
+            git push origin HEAD:main
           fi
