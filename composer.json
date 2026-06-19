@@ -11,11 +11,17 @@
     ],
     "minimum-stability": "stable",
     "require": {
-        "php": ">=8.0"
+        "php": ">=8.0",
+        "symfony/console": "^8.0.13"
     },
     "autoload": {
         "psr-4": {
             "DbStressmit\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "DbStressmit\\Tests\\": "tests/"
         }
     },
     "bin": [
@@ -26,6 +32,9 @@
             "providers": [
                 "DbStressmit\\StressmitServiceProvider"
             ]
+        },
+        "symfony": {
+            "allow-contrib": true
         }
     }
 }
