@@ -41,7 +41,6 @@ Are you looking for a powerful **Laravel query log auditor**, **PHP SQL profilin
 * **Laravel:** `^9.0 | ^10.0 | ^11.0 | ^12.0` (Optional, for auto-pilot feature)
 
 ---
-
 ## 🚀 Installation
 
 Install the package seamlessly via [Composer](https://getcomposer.org/):
