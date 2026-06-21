@@ -36,3 +36,19 @@ jobs:
 
       - name: Validate CLI Executable
         run: php bin/db-stressmit --help
+
+      # --- LANGKAH BARU UNTUK COMMIT AMAN ATAS NAMA ANDA ---
+      - name: Commit and Push Changes Safely
+        run: |
+          # Konfigurasi Git menggunakan email samaran resmi GitHub Anda
+          git config --local user.email "${{ github.actor_id }}+${{ github.actor }}@://github.com"
+          git config --local user.name "${{ github.actor }}"
+          
+          # Memeriksa apakah ada berkas yang berubah selama proses pengujian/build
+          if [ -n "$(git status --porcelain)" ]; then
+            git add .
+            git commit -m "chore: automated updates from CI pipeline [skip ci]"
+            git push origin HEAD:${{ github.ref_name }}
+          else
+            echo "Tidak ada perubahan berkas, melewati proses commit."
+          fi
