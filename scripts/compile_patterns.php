@@ -1,65 +1,67 @@
 <?php
 
 /**
- * Script Compiler Otomatis untuk db-stressmit (Versi Opsi A - Payload Terverifikasi)
- * Mengambil data ancaman langsung dari Wordlist SQLi dunia, 
- * menerapkan sanitasi, dan menyusun struktur Regex berbasis OWASP Core Rule Set (CRS) style.
+ * Script Compiler Otomatis untuk db-stressmit (Jalur API Resmi GitHub)
+ * Mengunduh wordlist SQLi global secara aman menggunakan GitHub API Contents.
  */
 
 $outputFile = __DIR__ . '/../src/Patterns/compiled.php';
 
-echo "🤖 Menghubungi Repositori Payload Global (SwisskyRepo & Seclists)...\n";
+echo "🤖 Menghubungi GitHub API untuk mengambil Payload SQLi...\n";
 
-// Sumber Wordlist SQLi Mentah (Raw GitHub)
+// Menggunakan API resmi GitHub untuk menghindari blokir cURL / Rate Limit
 $sources = [
-    'Swissky SQLi Generic' => 'https://githubusercontent.com',
-    'Swissky SQLi Auth'    => 'https://githubusercontent.com',
-    'SecLists SQLi'        => 'https://githubusercontent.com'
+    'Swissky SQLi Generic' => 'https://github.com',
+    'Swissky SQLi Auth'    => 'https://github.com',
+    'SecLists SQLi'        => 'https://github.com'
 ];
 
-// Target fungsi dan kata kunci SQL kritis yang WAJIB diekstrak dari payload nyata
 $targetSignatures = [
     'sleep', 'benchmark', 'extractvalue', 'updatexml', 'load_file', 
     'gtid_subset', 'st_latfromgeohash', 'floor', 'rand', 'make_set',
     'delay', 'pg_sleep', 'waitfor', 'sys_eval', 'cmdshell', 'union',
-    'select', 'insert', 'update', 'delete', 'drop', 'alter', 'where',
-    'into\s+(outfile|dumpfile)', 'or\s+\d+=\d+', 'and\s+\d+=\d+'
+    'select', 'insert', 'update', 'delete', 'drop', 'alter', 'where'
 ];
 
 $collectedKeywords = [];
 
-foreach ($sources as $name => $url) {
-    echo "📥 Mengunduh data dari: $name...\n";
+foreach ($sources as $name => $apiUrl) {
+    echo "📥 Mengunduh data via API: $name...\n";
     
-    $ch = curl_init($url);
+    $ch = curl_init($apiUrl);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) db-stressmit-bot/1.0');
+    curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+    // WAJIB: GitHub API menuntut User-Agent dan header Accept khusus
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'User-Agent: db-stressmit-compiler-bot',
+        'Accept: application/vnd.github.v3.raw' 
+    ]);
     
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    if ($httpCode === 200 && $response) {
-        // Pecah response menjadi baris per baris
+    if ($httpCode === 200 && !empty($response)) {
         $lines = explode("\n", strtolower($response));
+        $matchCount = 0;
         
         foreach ($lines as $line) {
             $line = trim($line);
             if (empty($line) || strpos($line, '#') === 0) {
-                continue; // Lewati baris kosong atau komentar
+                continue;
             }
             
-            // Pindai apakah ada signature kita di dalam payload asli tersebut
             foreach ($targetSignatures as $sig) {
-                if (preg_match("/\b" . $sig . "\b/i", $line)) {
+                // Modifikasi regex agar pencarian kata kunci lebih fleksibel di dalam payload
+                if (preg_match("/" . preg_quote($sig, '/') . "/i", $line)) {
                     $collectedKeywords[] = $sig;
+                    $matchCount++;
                 }
             }
         }
+        echo "🔹 Berhasil mengekstrak $matchCount kecocokan dari $name.\n";
     } else {
-        echo "⚠️ Gagal mengunduh sumber: $name (HTTP $httpCode)\n";
+        echo "⚠️ Gagal mengakses API $name (HTTP $httpCode). Menggunakan data lokal jika tersedia.\n";
     }
 }
 
@@ -70,7 +72,7 @@ $collectedKeywords = array_unique(array_filter(array_map('trim', $collectedKeywo
 $fallbackPatterns = ['sleep', 'benchmark', 'extractvalue', 'updatexml', 'load_file', 'union', 'select'];
 $collectedKeywords = array_values(array_unique(array_merge($collectedKeywords, $fallbackPatterns)));
 
-// --- COMPRESSION & INTERNATIONAL WORD BOUNDARY GUARD (\b) ---
+// --- COMPRESSION & REGEX COMPILATION ---
 $escapedKeywords = array_map('preg_quote', $collectedKeywords);
 $compiledRegex = '/\b(' . implode('|', $escapedKeywords) . ')\b\s*(\(|\[|--|\#|\/\*|\s|$)/i';
 
@@ -81,7 +83,7 @@ if (!is_dir($dir)) {
 }
 
 $template = "<?php\n\n";
-$template .= "/**\n * TERKOMPILASI OTOMATIS OLEH GIT WORDLIST SCRAPER (STANDAR INTERNASIONAL)\n * JANGAN DIEDIT MANUAL - AKAN TIMBUL OVERWRITE\n * Last Updated: " . date('Y-m-d H:i:s') . " UTC\n */\n\n";
+$template .= "/**\n * TERKOMPILASI OTOMATIS OLEH GIT WORDLIST SCRAPER (API VERSION)\n * JANGAN DIEDIT MANUAL - AKAN TIMBUL OVERWRITE\n */\n\n";
 $template .= "return [\n";
 $template .= "    'generated_at' => '" . date('Y-m-d H:i:s') . "',\n";
 $template .= "    'dynamic_regex' => '" . addslashes($compiledRegex) . "',\n";
@@ -90,9 +92,8 @@ $template .= "    'keywords_count' => " . count($collectedKeywords) . "\n";
 $template .= "];\n";
 
 if (file_put_contents($outputFile, $template) !== false) {
-    echo "✅ Sukses menyusun pola berstandar internasional (" . count($collectedKeywords) . " aturan berdasarkan payload nyata).\n";
-    echo "📦 Ukuran file: " . round(filesize($outputFile) / 1024, 2) . " KB\n";
+    echo "✅ Sukses memperbarui berkas pola! Total ada " . count($collectedKeywords) . " aturan aktif.\n";
 } else {
-    echo "❌ Gagal mengamankan file pola ke sistem disk!\n";
+    echo "❌ Gagal menyimpan file berkas!\n";
     exit(1);
 }
