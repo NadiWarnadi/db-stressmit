@@ -1,13 +1,12 @@
 <?php
 
 /**
- * TERKOMPILASI OTOMATIS OLEH GIT WORDLIST SCRAPER (STANDAR INTERNASIONAL)
+ * TERKOMPILASI OTOMATIS OLEH GIT WORDLIST SCRAPER (API VERSION)
  * JANGAN DIEDIT MANUAL - AKAN TIMBUL OVERWRITE
- * Last Updated: 2026-06-21 15:42:20 UTC
  */
 
 return [
-    'generated_at' => '2026-06-21 15:42:20',
+    'generated_at' => '2026-06-21 15:46:07',
     'dynamic_regex' => '/\\b(sleep|benchmark|extractvalue|updatexml|load_file|union|select)\\b\\s*(\\(|\\[|--|\\#|\\/\\*|\\s|$)/i',
     'keywords' => array (
   0 => 'sleep',
