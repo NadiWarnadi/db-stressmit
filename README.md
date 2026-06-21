@@ -1,6 +1,5 @@
 
 # DB-STRESSMIT 🚀
-
 <p align="center">
   <img src="https://laravel.com/img/logomark.min.svg" alt="Laravel Logo" width="50" height="50" style="vertical-align: middle; margin-right: 10px;"/>
   <img src="https://www.php.net/images/logos/php-logo.svg" alt="PHP Logo" width="70" height="50" style="vertical-align: middle;"/>
