@@ -36,8 +36,9 @@ jobs:
 
       - name: Commit and Push if Changes Detected
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          # MODIFIKASI: Menggunakan identitas akun Anda secara aman tanpa membocorkan email asli
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
           
           # Gunakan flag -f jika file tersebut terabaikan oleh .gitignore
           git add src/Patterns/compiled.php
