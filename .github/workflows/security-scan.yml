@@ -1,0 +1,66 @@
+name: "Security Scan PHP Gratis"
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  schedule:
+    - cron: '0 0 * * 1' # Berjalan otomatis seminggu sekali tiap hari Senin
+
+permissions:
+  security-events: write # Wajib untuk menjalankan CodeQL gratis di repo publik
+  issues: write           # Wajib agar Actions bisa membuat Issue otomatis
+
+jobs:
+  analyze:
+    name: CodeQL Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repositori
+      uses: actions/checkout@v4
+
+    # Menginisialisasi CodeQL khusus untuk mendeteksi bahasa PHP Anda
+    - name: Inisialisasi CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: 'php'
+
+    # Menjalankan pemindaian otomatis pada kode PHP Anda
+    - name: Jalankan Analisis Keamanan
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:php"
+
+    # Membuat Issue otomatis jika terdeteksi celah keamanan berbahaya
+    - name: Buat Issue Otomatis Jika Ada Temuan
+      if: failure() || success() # Tetap berjalan untuk mengecek hasil scan
+      uses: actions/github-script@v7
+      with:
+        script: |
+          try {
+            // Mengambil data alert scanning keamanan terbaru dari repositori ini
+            const alerts = await github.rest.codeScanning.listAlertsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open'
+            });
+            
+            // Menyaring alert yang tingkat bahayanya 'high' atau 'critical'
+            const criticalAlerts = alerts.data.filter(alert => 
+              alert.rule.severity === 'error' || alert.rule.security_severity_level === 'high' || alert.rule.security_severity_level === 'critical'
+            );
+
+            // Jika ada celah bahaya yang terbuka, otomatis buatkan GitHub Issue
+            if (criticalAlerts.length > 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: '⚠️ Temuan Keamanan: Celah Bahaya Terdeteksi di Code Review',
+                body: `Halo Tim, \n\nGitHub Actions mendeteksi adanya **${criticalAlerts.length} kerentanan keamanan baru** tingkat tinggi/kritis pada kode PHP Anda.\n\nSilakan periksa detail lokasi baris kode dan cara memperbaikinya langsung di tab **Security > Code scanning** pada repositori Anda.\n\n_Pesan ini dibuat otomatis oleh GitHub Actions._`
+              });
+            }
+          } catch (error) {
+            console.log("Tidak ada alert baru atau terjadi kesalahan: ", error);
+          }
