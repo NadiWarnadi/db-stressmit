@@ -10,6 +10,18 @@
 <p align="center">
   <strong>An agnostic, ultra-lightweight database query benchmark, heuristic security auditor, and automated stress tester for PHP and Laravel applications.</strong>
 </p>
+---
+
+## 🌟 Dukung db-stressmit
+
+Jika alat pengujian beban basis data ini bermanfaat bagi Anda, bantu kami berkembang dengan memberikan Star!
+
+| Klik Tombol di Bawah Ini |
+| :---: |
+| [![Star db-stressmit](https://img.shields.io/badge/⭐%20BERI%20STAR-db--stressmit-yellow?style=for-the-badge&logo=github)](https://github.com/NadiWarnadi/db-stressmit/stargazers) |
+
+---
+
 
 <p align="center">
   <a href="https://packagist.org/packages/warnadi/db-stressmit"><img src="https://img.shields.io/packagist/v/warnadi/db-stressmit?style=flat-square" alt="Packagist Version"></a>
