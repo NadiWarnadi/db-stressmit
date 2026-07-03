@@ -2,82 +2,73 @@
 
 namespace DbStressmit;
 
+use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
 /**
- * Jembatan Otomatis Khusus Ekosistem Laravel (Mendukung Laravel 9, 10, 11, hingga 12+).
+ * Jembatan Otomatis Khusus Ekosistem Laravel (Mendukung Laravel 10, 11, 12, hingga 13+).
+ * Wajib meng-extend ServiceProvider bawaan Laravel agar aman saat proses package:discover.
  */
-class StressmitServiceProvider
+class StressmitServiceProvider extends ServiceProvider
 {
     /**
-     * @var mixed
+     * Daftarkan Core Engine ke dalam Service Container Laravel.
+     * Method ini otomatis dipanggil oleh Laravel, variabel $this->app sudah tersedia dari class induk.
      */
-    protected $app;
-
-    /**
-     * @param mixed $app
-     */
-    public function __construct($app = null)
-    {
-        $this->app = $app;
-    }
-
     public function register(): void
     {
-        // Bind Core Engine ke dalam Service Container Laravel jika tersedia
-        if (function_exists('\app') && class_exists('\Illuminate\Support\Facades\App')) {
-            \app()->singleton('stressmit', function () {
-                return new Stressmit();
-            });
-        }
+        $this->app->singleton('stressmit', function () {
+            return new Stressmit();
+        });
     }
 
+    /**
+     * Proses inisialisasi modul setelah semua service terdaftar.
+     */
     public function boot(): void
     {
-        // PENGAMAN UTAMA SEBELUM LOAD FRAMEWORK INTERNALS
-        if (!class_exists('\Illuminate\Support\Facades\DB') || !class_exists('\Illuminate\Support\Facades\Log')) {
+        // 1. DETEKSI LINGKUNGAN LOCAL SECARA AMAN
+        // Menggunakan properti $this->app bawaan provider yang kompatibel di semua versi Laravel
+        if (!$this->app->environment('local')) {
             return;
         }
 
-        // DETEKSI LINGKUNGAN LOCAL SECARA EFISIEN
-        $isLocal = false;
-        if (function_exists('\app')) {
-            $isLocal = \app()->environment('local');
+        // 2. DAFTARKAN MIDDLEWARE OTOMATIS
+        // Laravel 11+ mengubah arsitektur kernel, namun properti 'router' di container tetap kompatibel
+        if ($this->app->bound('router')) {
+            $router = $this->app->make('router');
+            
+            if (method_exists($router, 'pushMiddlewareToGroup')) {
+                $router->pushMiddlewareToGroup('web', \DbStressmit\Middleware\LaravelStressmitMiddleware::class);
+                $router->pushMiddlewareToGroup('api', \DbStressmit\Middleware\LaravelStressmitMiddleware::class);
+            }
         }
 
-        if ($isLocal) {
-            // 1. DAFTARKAN MIDDLEWARE OTOMATIS (Mencegah SQLi dari Request Data)
-            if (function_exists('\app') && \app()->bound('router')) {
-                $router = \app('router');
-                // Daftarkan global middleware ke grup 'web' dan 'api' secara dinamis
-                if (method_exists($router, 'pushMiddlewareToGroup')) {
-                    $router->pushMiddlewareToGroup('web', \DbStressmit\Middleware\LaravelStressmitMiddleware::class);
-                    $router->pushMiddlewareToGroup('api', \DbStressmit\Middleware\LaravelStressmitMiddleware::class);
-                }
+        // 3. LIVE DB QUERY LISTENER (Kompatibel Laravel 10 - 13+)
+        DB::listen(function ($query) {
+            $sql = $query->sql;
+
+            // Fast bypass kueri internal untuk efisiensi runtime
+            if (strlen($sql) < 15 || stripos($sql, 'information_schema') !== false) {
+                return;
             }
 
-            // 2. LIVE DB QUERY LISTENER (Mendukung Multi-versi Laravel 9-12)
-            \Illuminate\Support\Facades\DB::listen(function ($query) {
-                $sql = $query->sql;
+            $bindings = $query->bindings;
+            $timeMs = $query->time;
 
-                // Fast bypass kueri internal
-                if (strlen($sql) < 15 || stripos($sql, 'select * from information_schema') !== false) {
-                    return;
-                }
+            // Memanggil core engine paket Anda untuk menganalisis query
+            $hasilAudit = Stressmit::analyze($sql, $bindings, $timeMs);
 
-                $bindings = $query->bindings;
-                $timeMs = $query->time;
-
-                $hasilAudit = Stressmit::analyze($sql, $bindings, $timeMs);
-
-                if (!$hasilAudit['security_report']['is_safe'] || $timeMs > 100.0) {
-                    $logClass = '\Illuminate\Support\Facades\Log';
-                    $logClass::warning('[DB-STRESSMIT ALERT] Anomali query terdeteksi pada Runtime Laravel!', [
-                        'query' => $hasilAudit['query'],
-                        'risk_score' => $hasilAudit['security_report']['risk_score'] . '/100',
-                        'execution_time' => $timeMs . ' ms',
-                        'security_issues' => $hasilAudit['security_report']['issues']
-                    ]);
-                }
-            });
-        }
+            // Jika query tidak aman atau performa lambat (> 100ms)
+            if (!$hasilAudit['security_report']['is_safe'] || $timeMs > 100.0) {
+                Log::warning('[DB-STRESSMIT ALERT] Anomali query terdeteksi pada Runtime Laravel!', [
+                    'query'            => $hasilAudit['query'],
+                    'risk_score'       => $hasilAudit['security_report']['risk_score'] . '/100',
+                    'execution_time'   => $timeMs . ' ms',
+                    'security_issues'  => $hasilAudit['security_report']['issues']
+                ]);
+            }
+        });
     }
 }
