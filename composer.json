@@ -2,7 +2,6 @@
     "name": "warnadi/db-stressmit",
     "description": "Smart database query benchmark, heuristic security auditor, and stress tester for Multi-Platform DB Stress Test (Laravel, WP, Symfony, CI, CLI).",
     "type": "library",
-    "version": "0.3.0",
     "license": "MIT",
     "minimum-stability": "stable",
     "prefer-stable": true,
