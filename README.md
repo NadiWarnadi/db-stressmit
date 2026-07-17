@@ -27,7 +27,7 @@ Jika alat pengujian beban basis data ini bermanfaat bagi Anda, bantu kami berkem
   <a href="https://packagist.org/packages/warnadi/db-stressmit"><img src="https://img.shields.io/packagist/v/warnadi/db-stressmit?style=flat-square" alt="Packagist Version"></a>
   <a href="https://packagist.org/packages/warnadi/db-stressmit"><img src="https://img.shields.io/packagist/dt/warnadi/db-stressmit?style=flat-square" alt="Total Downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/packagist/l/warnadi/db-stressmit?style=flat-square" alt="License"></a>
-  <a href="https://github.com/warnadi/db-stressmit/stargazers"><img src="https://img.shields.io/github/stars/warnadi/db-stressmit?style=flat-square" alt="GitHub Stars"></a>
+  <a href="https://github.com/NadiWarnadi/db-stressmit/stargazers"><img src="https://img.shields.io/github/stars/warnadi/db-stressmit?style=flat-square" alt="GitHub Stars"></a>
 </p>
 
 ---
