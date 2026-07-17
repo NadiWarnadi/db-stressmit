@@ -6,7 +6,7 @@
  */
 
 return [
-    'generated_at' => '2026-07-16 02:02:27',
+    'generated_at' => '2026-07-17 02:05:34',
     'dynamic_regex' => '/\\b(sleep|benchmark|extractvalue|updatexml|load_file|union|select)\\b\\s*(\\(|\\[|--|\\#|\\/\\*|\\s|$)/i',
     'keywords' => array (
   0 => 'sleep',
