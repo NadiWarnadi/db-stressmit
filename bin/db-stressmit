@@ -1,137 +1,25 @@
 #!/usr/bin/env php
 <?php
 
-require __DIR__ . '/../vendor/autoload.php';
+$autoloadPaths = [
+    __DIR__ . '/../../../autoload.php',
+    __DIR__ . '/../vendor/autoload.php',
+];
 
-use Symfony\Component\Console\Application;
-use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Helper\Table;
-use DbStressmit\Stressmit;
+$found = false;
+foreach ($autoloadPaths as $path) {
+    if (file_exists($path)) {
+        require_once $path;
+        $found = true;
+        break;
+    }
+}
 
-$app = new Application('DB-Stressmit CLI Scanner', '1.0.0');
+if (!$found) {
+    fwrite(STDERR, "Autoloader tidak ditemukan. Jalankan 'composer install' dulu.\n");
+    exit(1);
+}
 
-$app->register('scan')
-    ->setDescription('Scan file SQL atau direktori project untuk mendeteksi kerentanan kueri database.')
-    ->addOption('file', 'f', InputOption::VALUE_OPTIONAL, 'Jalur ke file mentah .sql')
-    ->addOption('path', 'p', InputOption::VALUE_OPTIONAL, 'Jalur direktori kode sumber yang akan dipindai')
-    ->addOption('framework', 'w', InputOption::VALUE_OPTIONAL, 'Filter framework spesifik (misal: laravel)', 'agnostic')
-    ->addOption('format', 'm', InputOption::VALUE_OPTIONAL, 'Format output: table, json, html', 'table')
-    ->setCode(function (InputInterface $input, OutputInterface $output) {
-        $file = $input->getOption('file');
-        $path = $input->getOption('path');
-        $framework = strtolower($input->getOption('framework'));
-        $format = strtolower($input->getOption('format'));
+use Warnadi\DbStressmit\Bootstrap;
 
-        $queriesToScan = [];
-
-        // 1. Ekstraksi dari File SQL Tunggal
-        if ($file) {
-            if (!file_exists($file)) {
-                $output->writeln("<error>File tidak ditemukan: {$file}</error>");
-                return Command::FAILURE;
-            }
-            $content = file_get_contents($file);
-            // Pisahkan kueri berdasarkan karakter semicolon
-            $queries = array_filter(array_map('trim', explode(';', $content)));
-            foreach ($queries as $q) {
-                if (!empty($q)) $queriesToScan[] = ['source' => $file, 'query' => $q];
-            }
-        }
-
-        // 2. Ekstraksi Massal dari Direktori Kode Sumber
-        if ($path) {
-            if (!is_dir($path)) {
-                $output->writeln("<error>Direktori tidak ditemukan: {$path}</error>");
-                return Command::FAILURE;
-            }
-
-            $directoryIterator = new RecursiveDirectoryIterator($path);
-            $iterator = new RecursiveIteratorIterator($directoryIterator);
-            
-            foreach ($iterator as $fileInfo) {
-                if ($fileInfo->isFile() && $fileInfo->getExtension() === 'php') {
-                    $fileContent = file_get_contents($fileInfo->getPathname());
-                    
-                    // Regex Pola Pencarian Kueri
-                    if ($framework === 'laravel') {
-                        // Menangkap DB::select(), DB::raw(), ->whereRaw(), dsb.
-                        preg_match_all('/\b(DB::[a-zA-Z0-9_]+|whereRaw|havingRaw|selectRaw|orderByRaw)\s*\(\s*[\'"]([^\'"]+)[\'"]/i', $fileContent, $matches);
-                        foreach ($matches[2] as $rawQuery) {
-                            $queriesToScan[] = ['source' => $fileInfo->getFilename(), 'query' => $rawQuery];
-                        }
-                    } else {
-                        // Pola Agnostik Umum (Menangkap string SQL statis di dalam kode PHP)
-                        preg_match_all('/[\'"](SELECT|INSERT|UPDATE|DELETE)\s+[^"\'\n]+/i', $fileContent, $matches);
-                        foreach ($matches[0] as $rawQuery) {
-                            $queriesToScan[] = ['source' => $fileInfo->getFilename(), 'query' => trim($rawQuery, '"\'')];
-                        }
-                    }
-                }
-            }
-        }
-
-        if (empty($queriesToScan)) {
-            $output->writeln("<comment>Tidak ada kueri SQL yang ditemukan untuk dipindai.</comment>");
-            return Command::SUCCESS;
-        }
-
-        // 3. Proses Scanning Menggunakan Core Engine Stressmit
-        $results = [];
-        $unsafeCount = 0;
-
-        foreach ($queriesToScan as $item) {
-            $report = Stressmit::analyze($item['query']);
-            $isSafe = $report['security_report']['is_safe'];
-            
-            if (!$isSafe) {
-                $unsafeCount++;
-            }
-
-            $results[] = [
-                'source' => $item['source'],
-                'query' => substr($item['query'], 0, 50) . (strlen($item['query']) > 50 ? '...' : ''),
-                'risk_score' => $report['security_report']['risk_score'],
-                'status' => $isSafe ? '✅ SAFE' : '❌ UNSAFE',
-                'issues' => implode(', ', $report['security_report']['issues']) ?: '-'
-            ];
-        }
-
-        // 4. Output Formatter Engine
-        if ($format === 'json') {
-            $output->writeln(json_encode([
-                'summary' => ['total_scanned' => count($results), 'unsafe_detected' => $unsafeCount],
-                'details' => $results
-            ], JSON_PRETTY_PRINT));
-        } elseif ($format === 'html') {
-            $html = "<html><head><style>table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px}th{background:#f2f2f2}</style></head><body>";
-            $html .= "<h2>DB-Stressmit Scan Report</h2><p>Unsafe Detected: {$unsafeCount} / " . count($results) . "</p><table>";
-            $html .= "<tr><th>Source</th><th>Query Snippet</th><th>Risk Score</th><th>Status</th><th>Issues</th></tr>";
-            foreach ($results as $r) {
-                $html .= "<tr><td>{$r['source']}</td><td>" . htmlspecialchars($r['query']) . "</td><td>{$r['risk_score']}</td><td>{$r['status']}</td><td>" . htmlspecialchars($r['issues']) . "</td></tr>";
-            }
-            $html .= "</table></body></html>";
-            $output->writeln($html);
-        } else {
-            // Default: Symfony Console Table
-            $output->writeln("\n📊 <info>DB-STRESSMIT BATCH SCAN REPORT</info>");
-            $output->writeln("===============================================");
-            
-            $table = new Table($output);
-            $table->setHeaders(['Source File', 'Query Snippet', 'Risk', 'Status', 'Detected Issues']);
-            $table->setRows($results);
-            $table->render();
-
-            if ($unsafeCount > 0) {
-                $output->writeln("\n⚠️  <error> BAHAYA: Ditemukan {$unsafeCount} kueri berisiko keamanan tinggi! Segera perbaiki kode Anda. </error>\n");
-                return Command::FAILURE;
-            }
-            $output->writeln("\n✨ <info>Sukses: Semua kueri bersih dari indikasi SQL Injection!</info>\n");
-        }
-
-        return Command::SUCCESS;
-    });
-
-$app->run();
+Bootstrap::runConsole($argv);

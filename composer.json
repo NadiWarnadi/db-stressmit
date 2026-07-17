@@ -1,40 +1,27 @@
 {
     "name": "warnadi/db-stressmit",
-    "description": "Smart database query benchmark, heuristic security auditor, and stress tester for PHP and Laravel.",
+    "description": "Smart database query benchmark, heuristic security auditor, and stress tester for Multi-Platform DB Stress Test (Laravel, WP, Symfony, CI, CLI).",
     "type": "library",
+    "version": "0.3.0",
     "license": "MIT",
-    "authors": [
-        {
-            "name": "Warnadi Nadi",
-            "email": "warnadi2006@gmail.com"
-        }
-    ],
     "minimum-stability": "stable",
+    "prefer-stable": true,
     "require": {
-        "php": ">=8.0",
-       "symfony/console": "^6.0|^7.0"
+        "php": "^8.0",
+        "symfony/console": "^5.4|^6.0|^7.0"
+    },
+    "suggest": {
+        "laravel/framework": "Untuk auto-integrasi sakti dengan Laravel",
+        "symfony/http-kernel": "Untuk auto-integrasi sakti dengan Symfony",
+        "codeigniter4/framework": "Untuk auto-integrasi sakti dengan CodeIgniter 4",
+        "johnpbloch/wordpress-core": "Untuk auto-integrasi sakti dengan WordPress"
     },
     "autoload": {
         "psr-4": {
-            "DbStressmit\\": "src/"
-        }
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "DbStressmit\\Tests\\": "tests/"
+            "Warnadi\\DbStressmit\\": "src/"
         }
     },
     "bin": [
         "bin/db-stressmit"
-    ],
-    "extra": {
-        "laravel": {
-            "providers": [
-                "DbStressmit\\StressmitServiceProvider"
-            ]
-        },
-        "symfony": {
-            "allow-contrib": true
-        }
-    }
+    ]
 }
