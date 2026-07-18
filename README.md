@@ -10,6 +10,9 @@
 <p align="center">
   <strong>An agnostic, ultra-lightweight database query benchmark, heuristic security auditor, and automated stress tester for PHP and Laravel applications.</strong>
 </p>
+
+## status software
+MAINTENANCE
 ---
 
 ## 🌟 Dukung db-stressmit
