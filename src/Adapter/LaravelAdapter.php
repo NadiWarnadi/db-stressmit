@@ -1,6 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Warnadi\DbStressmit\Adapter;
+
+use Illuminate\Support\Facades\DB;
 
 class LaravelAdapter implements AdapterInterface
 {
@@ -9,20 +13,15 @@ class LaravelAdapter implements AdapterInterface
 
     public function getConnection()
     {
-        // Mengambil koneksi dari Laravel
-        return \Illuminate\Support\Facades\DB::connection();
+        return DB::connection();
     }
 
     public function query(string $sql): array
     {
         $start = microtime(true);
-        
-        // Eksekusi pakai DB::select() bawaan Laravel
-        $result = \Illuminate\Support\Facades\DB::select($sql);
-        
-        $this->lastTime = (microtime(true) - $start) * 1000; // ms
+        $result = DB::select($sql);
+        $this->lastTime = (microtime(true) - $start) * 1000;
         $this->queryLog[] = ['sql' => $sql, 'time' => $this->lastTime];
-        
         return $result;
     }
 
@@ -38,6 +37,6 @@ class LaravelAdapter implements AdapterInterface
 
     public function getDatabaseName(): string
     {
-        return \Illuminate\Support\Facades\DB::connection()->getDatabaseName();
+        return DB::connection()->getDatabaseName();
     }
 }

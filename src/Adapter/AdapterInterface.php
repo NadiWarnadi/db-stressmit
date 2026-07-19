@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Warnadi\DbStressmit\Adapter;
 
@@ -29,3 +30,4 @@ interface AdapterInterface
      */
     public function getDatabaseName(): string;
 }
+

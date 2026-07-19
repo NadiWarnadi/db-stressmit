@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Warnadi\DbStressmit\Adapter;
 
 class WordPressAdapter implements AdapterInterface
@@ -16,12 +18,12 @@ class WordPressAdapter implements AdapterInterface
     public function query(string $sql): array
     {
         global $wpdb;
-        
+
         $start = microtime(true);
         $result = $wpdb->get_results($sql, ARRAY_A);
         $this->lastTime = (microtime(true) - $start) * 1000;
         $this->queryLog[] = ['sql' => $sql, 'time' => $this->lastTime];
-        
+
         return $result;
     }
 
