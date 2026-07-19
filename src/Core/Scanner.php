@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Warnadi\DbStressmit\Core;
 
 use Warnadi\DbStressmit\Adapter\AdapterInterface;
@@ -15,16 +17,11 @@ class Scanner
         $this->profiler = new Profiler();
     }
 
-    /**
-     * Jalankan query secara berulang (simulasi beban)
-     */
     public function run(string $sql, int $iterations, int $concurrency = 1): array
     {
         $this->profiler->reset();
 
-        // Untuk concurrent, kita loop per "koneksi" (sebenarnya hanya simulasi)
         for ($i = 0; $i < $concurrency; $i++) {
-            // Bisa menggunakan proses terpisah jika ingin real, tapi di sini kita sequential
             for ($j = 0; $j < $iterations; $j++) {
                 $this->executeQuery($sql);
             }
@@ -44,8 +41,7 @@ class Scanner
             $error = $e->getMessage();
         }
 
-        $duration = (microtime(true) - $start) * 1000; // ms
-
+        $duration = (microtime(true) - $start) * 1000;
         $this->profiler->record($duration, $error);
     }
 

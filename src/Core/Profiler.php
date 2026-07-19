@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Warnadi\DbStressmit\Core;
 
 class Profiler
@@ -31,12 +33,12 @@ class Profiler
         if ($count === 0) {
             return [
                 'count' => 0,
-                'min' => 0,
-                'max' => 0,
-                'avg' => 0,
-                'median' => 0,
-                'percentile_95' => 0,
-                'error_rate' => $this->totalCount > 0 ? round(($this->errorCount / $this->totalCount) * 100, 2) : 0,
+                'min' => 0.0,
+                'max' => 0.0,
+                'avg' => 0.0,
+                'median' => 0.0,
+                'percentile_95' => 0.0,
+                'error_rate' => $this->totalCount > 0 ? round(($this->errorCount / $this->totalCount) * 100, 2) : 0.0,
             ];
         }
 
@@ -54,7 +56,7 @@ class Profiler
             'avg' => $avg,
             'median' => $median,
             'percentile_95' => $p95,
-            'error_rate' => $this->totalCount > 0 ? round(($this->errorCount / $this->totalCount) * 100, 2) : 0,
+            'error_rate' => $this->totalCount > 0 ? round(($this->errorCount / $this->totalCount) * 100, 2) : 0.0,
         ];
     }
 }
